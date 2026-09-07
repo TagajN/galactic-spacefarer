@@ -1,0 +1,46 @@
+services:
+  # API server
+  server:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev --workspace=server"
+    restart: unless-stopped
+    environment:
+      PORT: 4005
+      JWT_SECRET: ${JWT_SECRET:-galactic-super-secret-change-in-prod}
+      DB_PATH: /app/data/galactic.db
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      # Mount entire monorepo so tsx watch picks up changes
+      - .:/app
+      # Persist the SQLite DB across restarts
+      - db_data:/app/data
+      # Prevent host node_modules from overwriting the container's
+      - /app/node_modules
+    ports:
+      - "4005:4005"
+
+  # React client (Vite dev server)
+  client:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev --workspace=client -- --host"
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:4005
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+
+volumes:
+  db_data:
+    driver: local
